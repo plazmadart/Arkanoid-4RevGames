@@ -8,18 +8,17 @@ public class BallMovement : MonoBehaviour
     [Header("Ball parameters")]
     [SerializeField] private float ballSpeed = 5f;
 
-    private float lastPositionX;
     private GameObject _platformObject;
     private Rigidbody2D _rb2D;
     private Vector2 _startPosition;
     private Vector2 lastVelocity;
     private bool isReady = false;
+    private bool canStart = false;
     private bool isActive = false;
 
     private void Start()
     {
         _startPosition = transform.position;
-        lastPositionX = _startPosition.x;
         _rb2D = _ballObject.GetComponent<Rigidbody2D>();
 
         if(_platformObject == null)
@@ -34,16 +33,21 @@ public class BallMovement : MonoBehaviour
         {
             if (!isReady)
             {
-                if (Input.touchCount > 0)
+                if (Input.touchCount == 0)
                 {
                     isReady = true;
                 }
             }
-            else if (Input.touchCount == 0)
+            else if (Input.touchCount > 0 && !canStart)
+            {
+                canStart = true;
+            }
+            else if(Input.touchCount == 0 && canStart)
             {
                 StartMove();
                 isActive = true;
                 isReady = false;
+                canStart = false;
             }
 
             transform.position = new Vector2(_platformObject.transform.position.x, transform.position.y);
@@ -72,6 +76,7 @@ public class BallMovement : MonoBehaviour
         lastVelocity = _rb2D.velocity;
         _rb2D.velocity = Vector2.zero;
         _rb2D.gravityScale = 0f;
+        canStart = false;
     }
 
     public void ContinueMoving()
@@ -82,7 +87,7 @@ public class BallMovement : MonoBehaviour
 
     private void OnCollisionEnter2D(Collision2D collision)
     {
-        if (collision.gameObject.TryGetComponent(out Movement platform))
+        if (collision.gameObject.TryGetComponent(out Movement platform) && isActive)
         {
             Vector2 contactPoint = collision.GetContact(0).point;
             Vector2 platformCenter = collision.collider.bounds.center;

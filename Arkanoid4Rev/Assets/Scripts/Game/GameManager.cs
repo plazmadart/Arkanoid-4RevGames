@@ -12,6 +12,7 @@ public class GameManager : MonoBehaviour
     [SerializeField] private TMP_Text _livesCountText;
     [SerializeField] private TMP_Text _levelCountText;
     [SerializeField] private TMP_Text _loseText;
+    [SerializeField] private TMP_Text _winText;
 
     [Header("Game parameters")]
     [SerializeField] private int _lives = 3;
@@ -22,6 +23,7 @@ public class GameManager : MonoBehaviour
     [Header("Panels")]
     [SerializeField] private GameObject _losePanel;
     [SerializeField] private GameObject _pausePanel;
+    [SerializeField] private GameObject _winPanel;
 
     private GameObject _ball;
     private GameObject _platform;
@@ -32,6 +34,8 @@ public class GameManager : MonoBehaviour
     private int destroyedBlocksCount;
     private int score;
     private int remainingLives;
+    private int levelScore;
+    private bool gamePaused = false;
 
     private void Awake()
     {
@@ -67,7 +71,10 @@ public class GameManager : MonoBehaviour
     public void AddScore(int points)
     {
         score += points;
+        levelScore += points;
         _scoreText.text = score.ToString("D5");
+
+        IncreaseDestroyedBlocksCount();
     }
 
     public void DecreaseLives()
@@ -89,18 +96,28 @@ public class GameManager : MonoBehaviour
         _loseText.text = $"У вас закончились попытки.\r\nВам удалось набрать:\r\n <color=green>{score}</color> очков!\r\nХотите начать заново?";
     }
 
+    private void WinGame()
+    {
+        MoveToStartPosition();
+        StopGame();
+        _winPanel.SetActive(true);
+        _winText.text = $"Ого!\r\nВам удалось набрать:\r\n <color=green>{score}</color> очков!\r\nХотите начать заново?";
+    }
+
     private void FinishLevel()
     {
         destroyedBlocksCount = 0;
+        levelScore = 0;
         MoveToStartPosition();
         currentLevel++;
 
         if(currentLevel >= _levelPrefabs.Count)
         {
-            LoseGame();
+            WinGame();
         }
         else
         {
+            DestroyLevel();
             LoadLevel();
             _levelCountText.text = $"LEVEL: {currentLevel + 1}";
         }
@@ -109,16 +126,17 @@ public class GameManager : MonoBehaviour
     public void RestartGame()
     {
         _losePanel.SetActive(false);
-        _movement.enabled = true;
-        _ballMovement.enabled = true;
         _livesCountText.text = $"LIVES: {_lives}";
+        _levelCountText.text = $"LEVEL: {1}";
         score = 0;
         _scoreText.text = score.ToString("D5");
         currentLevel = 0;
         remainingLives = _lives;
+        destroyedBlocksCount = 0;
 
         DestroyLevel();
         LoadLevel();
+        ContinueGame();
         MoveToStartPosition();
     }
 
@@ -139,9 +157,32 @@ public class GameManager : MonoBehaviour
         Destroy(level);
     }
 
+    public void ReloadLevel()
+    {
+        score -= levelScore;
+        levelScore = 0;
+        _scoreText.text = score.ToString("D5");
+        destroyedBlocksCount = 0;
+
+        DecreaseLives();
+        DestroyLevel();
+        LoadLevel();
+
+
+        if (gamePaused)
+        {
+            gamePaused = false;
+            ContinueGame();
+        }
+
+        MoveToStartPosition();
+    }
+
     public void Pause()
     {
+        gamePaused = true;
         _ballMovement.StopMoving();
+        _ballMovement.enabled = false;
         _movement.enabled = false;
         _pausePanel.SetActive(true);
     }
@@ -154,7 +195,13 @@ public class GameManager : MonoBehaviour
 
     public void ContinueGame()
     {
-        _ballMovement.ContinueMoving();
+        _ballMovement.enabled = true;
         _movement.enabled = true;
+
+        if (gamePaused)
+        {
+            _ballMovement.ContinueMoving();
+            gamePaused = false;
+        }
     }
 }
